@@ -23,22 +23,7 @@ This roadmap details the features which were originally planned for _The Desolat
 ## Procedural Generation
 The game world is procedurally generated with every playthrough of the game using an algorithm developed by Christopher Ravosa. For more information on Christopher's generation algorithm, visit the [Recursive Dungeon Generation](https://github.com/crav12345/Recursive-Dungeon-Generation) algorithm repository.
 
-The algorithm developed for the game forces the world onto a 20x20 grid for the time being. However, it works on grids of uneven dimensions and various sizes. Below is a pseudocode walkthrough of the algorithm prior to the various modifications needed to make _The Desolate_.
-
-**_generateDungeon(Int n, Int m)_** <br />
-&nbsp;&nbsp;&nbsp;_instantiate the matrix, worldMap, which will be returned_ <br />
-&nbsp;&nbsp;&nbsp;_place a room, origin, in the matrix_ <br />
-&nbsp;&nbsp;&nbsp;_pathify(origin)_ <br />
-&nbsp;&nbsp;&nbsp;_return worldMap_ <br />
-
-**_pathify(Object room)_** <br />
-&nbsp;&nbsp;&nbsp;_for each door in this room_ <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_generate a percentage x between 0 and 100_ <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_if x >= 50_ <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_set this door to true to open it_ <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_if the adjacent spot in that direction on worldMap does NOT have a room_ <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_place a room, newRoom, on that index of the matrix_ <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_pathify(newRoom)_ <br />
+The algorithm developed for the game forces the world onto a 20x20 grid for the time being. However, it works on grids of uneven dimensions and various sizes.
     
 ## Acknowledgements
 This list contains links to resources which were helpful in the development of this project:

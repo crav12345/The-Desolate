@@ -7,11 +7,12 @@ This roadmap details the features which were originally planned for _The Desolat
 - [x] Procedurally generated world
     - [x] Place and connect rooms
     - [x] Add room descriptions
+    - [ ] User option for small (10x10), medium (20x20), or large (30x30) world size
 - [ ] Map view overlay
-- [ ] User option for small (10x10), medium (20x20), or large (30x30) world size
 - [x] Text-based traversal of world
 - [x] Vitality system
 - [ ] Resources spawn every night
+- [ ] Real-world temperature changes how sprites appear
 - [x] Day counter
 - [ ] Day/night cycle
 - [ ] Wandering enemies
@@ -22,7 +23,6 @@ This roadmap details the features which were originally planned for _The Desolat
     - [ ] Haptic feedback if an enemy hears you
 - [ ] Top scores (# days survived)
     - [ ] Score persistency
-- [ ] Real-world temperature changes how sprites appear
 
 ## Procedural Generation
 The game world is procedurally generated with every playthrough of the game using an algorithm developed by Christopher Ravosa. For more information on Christopher's generation algorithm, visit the [Recursive Dungeon Generation](https://github.com/crav12345/Recursive-Dungeon-Generation) algorithm repository.

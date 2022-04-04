@@ -16,9 +16,11 @@ This roadmap details the features which were originally planned for _The Desolat
 - [ ] Day/night cycle
 - [ ] Wandering enemies
     - [ ] Enemy spawns
+    - [ ] Shake phone to fight enemies
     - [ ] Threads for attacks
 - [ ] Top scores (# days survived)
     - [ ] Score persistency
+- [ ] Real-world temperature changes how sprites appear
 
 ## Procedural Generation
 The game world is procedurally generated with every playthrough of the game using an algorithm developed by Christopher Ravosa. For more information on Christopher's generation algorithm, visit the [Recursive Dungeon Generation](https://github.com/crav12345/Recursive-Dungeon-Generation) algorithm repository.

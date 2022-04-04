@@ -3,19 +3,39 @@ package com.chrisravosa.thedesolate
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.Color
 import android.graphics.drawable.AnimationDrawable
+import android.hardware.Sensor
+import android.hardware.SensorManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
 import android.widget.ImageView
 
 class MainActivity : AppCompatActivity() {
+    // Used to animate character.
     private lateinit var survivorIdleAnimation: AnimationDrawable
 
     /** Called as activity is started */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Initialize sensor manager and sensors.
+        val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val mSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
+        val tSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
+
+        // Check for existence of various sensors.
+        if (mSensor == null) {
+            // Can't handle enemies, so can't play the game.
+            findViewById<Button>(R.id.button).isEnabled = false
+        }
+        if (tSensor == null) {
+            // Disable dynamic sprite outfits.
+        }
+
 
         // Write top scores to local storage
         saveTopScores()

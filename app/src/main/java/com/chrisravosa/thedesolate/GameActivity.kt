@@ -1,7 +1,5 @@
 package com.chrisravosa.thedesolate
 
-import android.R.attr.x
-import android.R.attr.y
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.AnimationDrawable
@@ -20,6 +18,7 @@ import com.chrisravosa.thedesolate.R.id.progressBarEnemy
 import com.chrisravosa.thedesolate.R.id.progressBarVitality
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 
 // Tag used for debug logs.
@@ -98,8 +97,9 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     private var daysPassed = 1
     private var roomsVisited = 1
 
-    // Used to animate survivor sprite
+    // Used to animate sprites.
     private lateinit var survivorIdleAnimation: AnimationDrawable
+    private lateinit var enemyScreamAnimation: AnimationDrawable
 
     /** Called as activity is started */
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -167,7 +167,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
                 x = event.values[0]
                 y = event.values[1]
                 z = event.values[2]
-                val speed: Float = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000
+                val speed: Float = abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000
                 if (speed > SHAKE_THRESHOLD) {
                     Log.d(TAG, "shake detected w/ speed: $speed")
                     Toast.makeText(this, "shake detected w/ speed: $speed", Toast.LENGTH_SHORT)
@@ -491,6 +491,13 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             findViewById<ProgressBar>(progressBarEnemy)
         enemyProgressBar.isVisible = true
 
+        // Add animation_list for screaming enemy to the location image.
+        findViewById<ImageView>(R.id.imageLocation).apply {
+            setBackgroundResource(R.drawable.enemy_scream)
+            enemyScreamAnimation = background as AnimationDrawable
+        }
+        enemyScreamAnimation.start()
+
         // Notify the program that an enemy has appeared.
         enemyPresent = true
 
@@ -507,6 +514,12 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             findViewById<ProgressBar>(progressBarEnemy)
         enemyProgressBar.isVisible = false
         enemyProgressBar.progress = 100
+
+        // Add animation_list for screaming enemy to the location image.
+        findViewById<ImageView>(R.id.imageLocation).apply {
+            setBackgroundResource(R.drawable.amron_crate)
+        }
+        enemyScreamAnimation.stop()
 
         // Notify the program that an enemy has appeared.
         enemyPresent = false

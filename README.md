@@ -9,6 +9,7 @@ This roadmap details the features which were originally planned for _The Desolat
     - [x] Add room descriptions
     - [ ] User option for small (10x10), medium (20x20), or large (30x30) world size
 - [ ] Map view overlay
+- [ ] Dog companion
 - [x] Text-based traversal of world
 - [x] Vitality system
 - [ ] Resources spawn every night

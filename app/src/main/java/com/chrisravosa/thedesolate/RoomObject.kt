@@ -7,7 +7,8 @@ class RoomObject (
     var hasBeenPathed: Boolean,
     var roomDescription: String,
     var hasBeenVisited: Boolean,
-    var hasResources: Boolean
+    var hasResources: Boolean,
+    var hasEnemy: Boolean
 ) {
     constructor() : this (
         arrayOf(false, false, false, false),
@@ -15,6 +16,7 @@ class RoomObject (
         0,
         false,
         "",
+        false,
         false,
         false
     )

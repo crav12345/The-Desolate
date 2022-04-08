@@ -1,19 +1,26 @@
 package com.chrisravosa.thedesolate
 
+import android.R.attr.x
+import android.R.attr.y
+import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.AnimationDrawable
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
+import com.chrisravosa.thedesolate.R.id.progressBarEnemy
 import com.chrisravosa.thedesolate.R.id.progressBarVitality
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+
 
 // Tag used for debug logs.
 const val TAG = "GameActivity"
@@ -21,10 +28,30 @@ const val TAG = "GameActivity"
 // Defines matrix the world generates onto.
 const val WORLD_SIZE = 20
 
+// Defines how much phone needs to shake to escape enemy.
+private const val SHAKE_THRESHOLD = 800
+
 // Used when player finds resources to heal vitality.
 const val RESOURCES_BONUS = 33
 
-class GameActivity : AppCompatActivity() {
+class GameActivity : AppCompatActivity(), SensorEventListener {
+    // Hardware access variables.
+    private lateinit var sensorManager: SensorManager
+    private var mSensor: Sensor? = null
+    private var tSensor: Sensor? = null
+
+    // Used for checking device acceleration.
+    private var lastUpdate: Long = System.currentTimeMillis()
+    private var x: Float = 0.0f
+    private var y: Float = 0.0f
+    private var z: Float = 0.0f
+    private var lastX: Float = 0.0f
+    private var lastY: Float = 0.0f
+    private var lastZ: Float = 0.0f
+
+    // Tells us if the player has encountered an enemy.
+    private var enemyPresent: Boolean = false
+
     // Narrative text values for room descriptions.
     private val roomDescriptions = arrayOf(
         R.string.room_description1,
@@ -61,7 +88,7 @@ class GameActivity : AppCompatActivity() {
     private val gameWorld = WorldObject()
     private val player = PlayerObject()
 
-    // Handles day counter and vitality threads.
+    // Handles day counter, enemy encounter, and vitality threads.
     private val executorService = Executors.newSingleThreadScheduledExecutor()
 
     // Metrics
@@ -86,6 +113,11 @@ class GameActivity : AppCompatActivity() {
         daysPassed = 1
         roomsVisited = 1
 
+        // Initialize sensor manager and sensors.
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        mSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        tSensor = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
+
         // Set HUD views to starting values.
         applicationContext.resources.getString(R.string.game_start)
             .also { findViewById<TextView>(R.id.textNarrative).text = it }
@@ -99,6 +131,7 @@ class GameActivity : AppCompatActivity() {
                 R.string.coordinates, playerDisplayX, playerDisplayY
             )
         findViewById<ProgressBar>(progressBarVitality).progress = 100
+        findViewById<ProgressBar>(progressBarEnemy).progress = 100
 
         // Generate game world.
         val worldMap = generateWorld(WORLD_SIZE)
@@ -117,6 +150,45 @@ class GameActivity : AppCompatActivity() {
             survivorIdleAnimation = background as AnimationDrawable
         }
         survivorIdleAnimation.start()
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+        // Do something here if sensor accuracy changes.
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        // Do something with this sensor data.
+        if (event.sensor.type == mSensor!!.type) {
+            val curTime = System.currentTimeMillis()
+            // only allow one update every 100ms.
+            if (curTime - lastUpdate > 100) {
+                val diffTime: Long = curTime - lastUpdate
+                lastUpdate = curTime
+                x = event.values[0]
+                y = event.values[1]
+                z = event.values[2]
+                val speed: Float = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000
+                if (speed > SHAKE_THRESHOLD) {
+                    Log.d(TAG, "shake detected w/ speed: $speed")
+                    Toast.makeText(this, "shake detected w/ speed: $speed", Toast.LENGTH_SHORT)
+                        .show()
+                    enemyDisappeared()
+                }
+                lastX = x
+                lastY = y
+                lastZ = z
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        sensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_NORMAL)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this)
     }
 
     /** Called when the user presses the start button */
@@ -142,6 +214,7 @@ class GameActivity : AppCompatActivity() {
         // Handlers to interface with threads which handle days and health.
         val timeThreadHandler = Handler(mainLooper)
         val vitalityThreadHandler = Handler(mainLooper)
+        val enemyThreadHandler = Handler(mainLooper)
 
         // Start incrementing days at intervals of 30 seconds.
         executorService.scheduleAtFixedRate(
@@ -162,7 +235,19 @@ class GameActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e(TAG, "ERROR: $e")
                 }
-            }, 1, 1, TimeUnit.SECONDS)
+            }, 1, 1, TimeUnit.SECONDS
+        )
+
+        // If an enemy appears, decrement reaction timer quickly.
+        executorService.scheduleAtFixedRate(
+            {
+                try {
+                    enemyThreadHandler.post{ lowerEnemyBar() }
+                } catch (e: Exception) {
+                    Log.e(TAG, "ERROR: $e")
+                }
+            }, 1, 1, TimeUnit.SECONDS
+        )
     }
 
     /** Called whenever the player presses the 'search' button */
@@ -268,6 +353,11 @@ class GameActivity : AppCompatActivity() {
                 applicationContext.resources.getString(
                     R.string.coordinates, playerDisplayX, playerDisplayY
                 )
+
+            if (gameWorld.map[player.y][player.x].hasEnemy) {
+                // Handle enemy.
+                enemyAppeared()
+            }
         }
         // Otherwise, notify the player that this direction is blocked.
         else {
@@ -302,6 +392,11 @@ class GameActivity : AppCompatActivity() {
                 applicationContext.resources.getString(
                     R.string.coordinates, playerDisplayX, playerDisplayY
                 )
+
+            if (gameWorld.map[player.y][player.x].hasEnemy) {
+                // Handle enemy.
+                enemyAppeared()
+            }
         }
         // Otherwise, notify the player that this direction is blocked.
         else {
@@ -336,6 +431,11 @@ class GameActivity : AppCompatActivity() {
                 applicationContext.resources.getString(
                     R.string.coordinates, playerDisplayX, playerDisplayY
                 )
+
+            if (gameWorld.map[player.y][player.x].hasEnemy) {
+                // Handle enemy.
+                enemyAppeared()
+            }
         }
         // Otherwise, notify the player that this direction is blocked.
         else {
@@ -370,6 +470,11 @@ class GameActivity : AppCompatActivity() {
                 applicationContext.resources.getString(
                     R.string.coordinates, playerDisplayX, playerDisplayY
                 )
+
+            if (gameWorld.map[player.y][player.x].hasEnemy) {
+                // Handle enemy.
+                enemyAppeared()
+            }
         }
         // Otherwise, notify the player that this direction is blocked.
         else {
@@ -378,6 +483,81 @@ class GameActivity : AppCompatActivity() {
                 applicationContext.resources.getString(
                     blockedDescriptions[description]
                 )
+        }
+    }
+
+    private fun enemyAppeared() {
+        val enemyProgressBar =
+            findViewById<ProgressBar>(progressBarEnemy)
+        enemyProgressBar.isVisible = true
+
+        // Notify the program that an enemy has appeared.
+        enemyPresent = true
+
+        // Disable user controls.
+        findViewById<Button>(R.id.buttonNorth).isEnabled = false
+        findViewById<Button>(R.id.buttonEast).isEnabled = false
+        findViewById<Button>(R.id.buttonSouth).isEnabled = false
+        findViewById<Button>(R.id.buttonWest).isEnabled = false
+        findViewById<Button>(R.id.buttonSearch).isEnabled = false
+    }
+
+    private fun enemyDisappeared() {
+        val enemyProgressBar =
+            findViewById<ProgressBar>(progressBarEnemy)
+        enemyProgressBar.isVisible = false
+        enemyProgressBar.progress = 100
+
+        // Notify the program that an enemy has appeared.
+        enemyPresent = false
+
+        // Disable user controls.
+        findViewById<Button>(R.id.buttonNorth).isEnabled = true
+        findViewById<Button>(R.id.buttonEast).isEnabled = true
+        findViewById<Button>(R.id.buttonSouth).isEnabled = true
+        findViewById<Button>(R.id.buttonWest).isEnabled = true
+        findViewById<Button>(R.id.buttonSearch).isEnabled = true
+    }
+
+    private fun lowerEnemyBar() {
+        // Locate the enemy bar and update it.
+        val enemyProgressBar =
+            findViewById<ProgressBar>(progressBarEnemy)
+        var progress = enemyProgressBar.progress
+
+        if (enemyPresent) {
+            progress--
+        }
+
+        // If the value of the enemy bar is 0 or less, the game ends.
+        if (progress <= 0) {
+            // Shutdown other threads.
+            executorService.shutdown()
+            if (!executorService.awaitTermination(
+                    100, TimeUnit.MICROSECONDS
+                )
+            ) {
+                // Log to the console if the threads aren't stopping.
+                Log.d(
+                    TAG,
+                    "Still waiting for executor service to shut down..."
+                )
+            }
+
+            // Record player score
+            val score = daysPassed * roomsVisited
+
+            // Start the EnterScore activity and pass score to it so the player
+            // knows how they did.
+            val intent = Intent(this, EnterScore::class.java)
+            intent.putExtra("score", score)
+            intent.putExtra("daysSurvived", daysPassed)
+            intent.putExtra("areasVisited", roomsVisited)
+            startActivity(intent)
+        }
+        // Otherwise, simply update the vitality bar with a new value.
+        else {
+            enemyProgressBar.progress = progress
         }
     }
 
@@ -394,7 +574,8 @@ class GameActivity : AppCompatActivity() {
             true,
             applicationContext.resources.getString(R.string.room_description0),
             hasBeenVisited = true,
-            hasResources = false
+            hasResources = false,
+            false
         )
 
         // Place rooms at every location surrounding the center room.
@@ -405,7 +586,8 @@ class GameActivity : AppCompatActivity() {
             false,
             "",
             hasBeenVisited = false,
-            hasResources = false
+            hasResources = false,
+            false
         )
         worldMap[n/2 - 1][n/2] = RoomObject(
             arrayOf(false, false, true, false),
@@ -414,7 +596,8 @@ class GameActivity : AppCompatActivity() {
             false,
             "",
             hasBeenVisited = false,
-            hasResources = false
+            hasResources = false,
+            false
         )
         worldMap[n/2][n/2 + 1] = RoomObject(
             arrayOf(false, false, false, true),
@@ -423,7 +606,8 @@ class GameActivity : AppCompatActivity() {
             false,
             "",
             hasBeenVisited = false,
-            hasResources = false
+            hasResources = false,
+            false
         )
         worldMap[n/2][n/2 - 1] = RoomObject(
             arrayOf(false, true, false, false),
@@ -432,7 +616,8 @@ class GameActivity : AppCompatActivity() {
             false,
             "",
             hasBeenVisited = false,
-            hasResources = false
+            hasResources = false,
+            false
         )
 
         // Snake a path off of every room around center.
@@ -451,9 +636,14 @@ class GameActivity : AppCompatActivity() {
         roomsPlaced++
 
         // There's a 25% chance of resources spawning here.
-        val rand = (0..100).random()
+        var rand = (0..100).random()
         if (rand >= 75)
             start.hasResources = true
+
+        // There's a 25% chance of an enemy spawning here.
+        rand = (0..100).random()
+        if (rand >= 75)
+            start.hasEnemy = true
 
         // Add a flag so this room doesn't get paths twice if another
         // path happens to meet it.

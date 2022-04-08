@@ -17,15 +17,20 @@ class MainActivity : AppCompatActivity() {
     // Used to animate character.
     private lateinit var survivorIdleAnimation: AnimationDrawable
 
+    // Variables to access hardware.
+    private lateinit var sensorManager: SensorManager
+    private var mSensor: Sensor? = null
+    private var tSensor: Sensor? = null
+
     /** Called as activity is started */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         // Initialize sensor manager and sensors.
-        val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val mSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
-        val tSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        mSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        tSensor = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
 
         // Check for existence of various sensors.
         if (mSensor == null) {
@@ -35,7 +40,6 @@ class MainActivity : AppCompatActivity() {
         if (tSensor == null) {
             // Disable dynamic sprite outfits.
         }
-
 
         // Write top scores to local storage
         saveTopScores()

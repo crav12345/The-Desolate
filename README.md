@@ -20,7 +20,7 @@ This roadmap details the features which were originally planned for _The Desolat
     - [x] Enemy spawns
     - [x] Shake phone to fight enemies
     - [x] Threads for attacks
-    - [X] If player makes noise enemies appear more frequently
+    - [x] If player makes noise enemies appear more frequently
     - [ ] Haptic feedback if an enemy hears you
 - [ ] Top scores (# days survived)
     - [ ] Score persistency

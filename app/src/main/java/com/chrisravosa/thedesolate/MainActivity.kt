@@ -40,6 +40,9 @@ class MainActivity : AppCompatActivity() {
         if (tSensor == null) {
             // Disable dynamic sprite outfits.
         }
+        /*if (microphone == null) {
+            // Disable enemies' ability to track player.
+        }*/
 
         // Write top scores to local storage
         saveTopScores()

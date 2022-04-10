@@ -1,21 +1,26 @@
 package com.chrisravosa.thedesolate
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.view.isVisible
 import com.chrisravosa.thedesolate.R.id.progressBarEnemy
 import com.chrisravosa.thedesolate.R.id.progressBarVitality
+import java.io.IOException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -33,11 +38,20 @@ private const val SHAKE_THRESHOLD = 800
 // Used when player finds resources to heal vitality.
 const val RESOURCES_BONUS = 33
 
+// Permission required to record audio.
+private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
+
 class GameActivity : AppCompatActivity(), SensorEventListener {
     // Hardware access variables.
     private lateinit var sensorManager: SensorManager
     private var mSensor: Sensor? = null
     private var tSensor: Sensor? = null
+    private var recorder: MediaRecorder? = null
+    private var fileName: String = ""
+
+    // Requesting permission to RECORD_AUDIO
+    private var permissionToRecordAccepted = false
+    private var permissions: Array<String> = arrayOf(Manifest.permission.RECORD_AUDIO)
 
     // Used for checking device acceleration.
     private var lastUpdate: Long = System.currentTimeMillis()
@@ -106,6 +120,12 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
 
+        // Record to the external cache directory for visibility
+        fileName = "${externalCacheDir?.absolutePath}/audiorecordtest.3gp"
+
+        // Request permission to use microphone.
+        ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION)
+
         // Reset metrics values.
         roomsPlaced = 0
         playerDisplayX = 0
@@ -150,10 +170,47 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             survivorIdleAnimation = background as AnimationDrawable
         }
         survivorIdleAnimation.start()
+
+        recorder = MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+            setOutputFile(fileName)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+
+            try {
+                prepare()
+            } catch (e: IOException) {
+                Log.e(TAG, "prepare() failed")
+            }
+
+            start()
+        }
+    }
+
+    private fun stopRecording() {
+        recorder?.apply {
+            stop()
+            release()
+        }
+        recorder = null
     }
 
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
         // Do something here if sensor accuracy changes.
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        permissionToRecordAccepted = if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        } else {
+            false
+        }
+        if (!permissionToRecordAccepted) finish()
     }
 
     override fun onSensorChanged(event: SensorEvent) {
@@ -215,6 +272,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         val timeThreadHandler = Handler(mainLooper)
         val vitalityThreadHandler = Handler(mainLooper)
         val enemyThreadHandler = Handler(mainLooper)
+        val amplitudeThreadHandler = Handler(mainLooper)
 
         // Start incrementing days at intervals of 30 seconds.
         executorService.scheduleAtFixedRate(
@@ -248,6 +306,39 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
                 }
             }, 1, 1, TimeUnit.SECONDS
         )
+
+        // Check for loud noises.
+        executorService.scheduleAtFixedRate(
+            {
+                try {
+                    amplitudeThreadHandler.post{ checkForNoise() }
+                } catch (e: Exception) {
+                    Log.e(TAG, "ERROR: $e")
+                }
+            }, 1, 1, TimeUnit.SECONDS
+        )
+    }
+
+    private fun checkForNoise() {
+        val amp: Int = (recorder?.maxAmplitude ?: Int) as Int
+
+        if (amp > 10000) {
+            Log.d(TAG, "Noise detected w/ amplitude: $amp")
+            Toast.makeText(this, "The creatures hear you. More appear.", Toast.LENGTH_SHORT)
+                .show()
+            enemyMovement()
+        }
+    }
+
+    private fun enemyMovement() {
+        for (i in 0 until gameWorld.map.size) {
+            for (j in 0 until gameWorld.map[0].size) {
+                // There's a 25% chance of an enemy spawning here.
+                val rand = (0..100).random()
+                if (rand >= 75)
+                    gameWorld.map[i][j].hasEnemy = true
+            }
+        }
     }
 
     /** Called whenever the player presses the 'search' button */
@@ -312,6 +403,9 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
                     "Still waiting for executor service to shut down..."
                 )
             }
+
+            // Turn off the microphone.
+            stopRecording()
 
             // Record player score
             val score = daysPassed * roomsVisited
@@ -556,6 +650,9 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
                     "Still waiting for executor service to shut down..."
                 )
             }
+
+            // Turn off the microphone.
+            stopRecording()
 
             // Record player score
             val score = daysPassed * roomsVisited
